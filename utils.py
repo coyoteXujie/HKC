@@ -24,7 +24,7 @@ def LoadDataset(file_name, test=False):
         testKnn = np.asarray(testKnn)
 
         if test:
-            result = (dataMatrix, testDataset, testKnn)
+            result = (dataMatrix, testDataset[:100], testKnn[:100])
 
         else:
             result = (dataMatrix, trainDataset, trainKnn)
@@ -91,6 +91,42 @@ def Compute_R(Tpointset_index, pointset_index):
         print("没有正确结果")
     else:
         recall = TP / TP_FN
+
+    return recall
+
+
+def calc_ratio(query, t_index, p_index, data, K=10):
+    _, t_dis = Knn(K, query, t_index, data)
+    _, p_dis = Knn(K, query, p_index, data)
+
+    t_dis.sort()
+    p_dis.sort()
+
+    ratio = np.mean(np.divide(p_dis[1:], t_dis[1:]))
+
+    return ratio
+
+
+def calc_recall(t_index, p_index):
+    """ 计算召回率
+
+    :param t_index: 正确的结果
+    :param p_index: 预测的结果
+    :return: 召回率
+    """
+    t_index, p_index = list(t_index), list(p_index)
+
+    t_index = set(t_index)
+    p_index = set(p_index)
+
+    tp = t_index & p_index
+    tp_fn = t_index
+
+    if tp_fn == 0:
+        recall = 0
+        print("没有正确结果")
+    else:
+        recall = len(tp) / len(tp_fn)
 
     return recall
 
@@ -199,28 +235,22 @@ def Knn(K, query, pointset_index, matrix):
     :return: （query的K个最近邻在matrix中的索引号，query到K个最近邻的距离）
     """
 
+    pointset_index = np.array(list(map(int, pointset_index)))
     candid_matrix = [matrix[index] for index in pointset_index]
     candid_size = np.array(candid_matrix).shape[0]
 
-    # 拼接为一个相同的矩阵
     different_matrix = np.tile(query, (candid_size, 1)) - candid_matrix
+    dis_matrix = np.linalg.norm(different_matrix, axis=1)
+    if K >= len(dis_matrix):
+        K_list = np.argsort(dis_matrix)
+        K_distance = dis_matrix[K_list]
+        K_list = list(pointset_index[K_list])
+    else:
+        K_list = np.argsort(dis_matrix)[:K]
+        K_distance = dis_matrix[K_list]
+        K_list = list(pointset_index[K_list])
 
-    # 做欧式距离的运算
-    square_matrix = np.power(different_matrix, 2)
-    sum_matrix = np.sum(square_matrix, axis=1)
-    sqrt_matrix = np.power(sum_matrix, 0.5)
-
-    K_indexes_temp = sqrt_matrix.argsort()[:K].tolist()
-
-    K_distance = []
-    for index in K_indexes_temp:
-        K_distance.append(sqrt_matrix[index])
-
-    K_indexes = []
-    for data_index in K_indexes_temp:
-        K_indexes.append(pointset_index[data_index])
-
-    return K_indexes, K_distance
+    return K_list, K_distance
 
 
 def ShowResult(tree, dataMatrix, testDataset, testKnn, file_name, k=10, c=1, hava_element=True):
@@ -293,7 +323,7 @@ def ShowResult(tree, dataMatrix, testDataset, testKnn, file_name, k=10, c=1, hav
 
 if __name__ == "__main__":
 
-    LoadDataset("Zipf/audio/datasetKnn.hdf5")
+    # LoadDataset("Zipf/audio/datasetKnn.hdf5")
 
 
     # # 测试Compute_Euclidean
@@ -317,15 +347,16 @@ if __name__ == "__main__":
     #     print(node)
 
 
-    # 测试Knn
-    matrix = [[1, 0, 0, 0, 0],
-              [1, 0, 0, 0, 0],
-              [1, 2, 3, 3, 3],
-              [1, 2, 2, 2, 2],
-              [1, 2, 2, 3, 3]]
-    pointset_index = [0, 1, 2, 3, 4]
-    point = [1, 1, 1, 1, 1]
-    K_list, _ = Knn(4, point, pointset_index, matrix)
-    print(K_list)
+    # # 测试Knn
+    # matrix = [[1, 0, 0, 0, 0],
+    #           [1, 0, 0, 0, 0],
+    #           [1, 2, 3, 3, 3],
+    #           [1, 2, 2, 2, 2],
+    #           [1, 2, 2, 3, 3]]
+    # pointset_index = [0, 1, 2, 3, 4]
+    # point = [1, 1, 1, 1, 1]
+    # K_list, _ = Knn(4, point, pointset_index, matrix)
+    # print(K_list)
+
 
     pass
